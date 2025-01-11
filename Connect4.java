@@ -3,7 +3,7 @@
 // 
 // Martin Butler 14/03/2024
 //
-// See Connect4.pdf for further details.
+// See report for further details.
 // See Readme.txt for details about code and build.
 //
 // This is a console program that uses a form of neural network to calculate the computer's move. A database approach had been tried, but failed.
@@ -33,12 +33,12 @@ public class Connect4 {
 	private static double[][] combinedScoresY = new double[7][6];		// Array used to combine vertical, horizontal and diagonal scores for each board position for yellow.
 
 	// The default values below have been selected after optimisation.
-	private static double 	PIECESDEFAULT = 4.0; 						// (x from Connect4.pdf) Now not optimised	
-	private static int		RANDOMDEFAULT = 2;							// (r from Connect4.pdf) Now not optimised
-	private static double	HORIZONTALDEFAULT = 1.1;					// (h from Connect4.pdf) 
-	private static double	VERTICALDEFAULT = 1.5;						// (v from Connect4.pdf)
-	private static double	DIAGONALDEFAULT = 1.9;						// (d from Connect4.pdf)
-	private static double	NEXTMOVEDEFAULT = 0.7;						// (n from Connect4.pdf) 0.7 seems to be the best value from many optimisation runs.
+	private static double 	PIECESDEFAULT = 4.0; 						// (x from documentation) Now not optimised	
+	private static int		RANDOMDEFAULT = 2;							// (r from documentation) Now not optimised
+	private static double	HORIZONTALDEFAULT = 1.02;					// (h from documentation) 
+	private static double	VERTICALDEFAULT = 1.64;						// (v documentation)
+	private static double	DIAGONALDEFAULT = 1.70;						// (d from documentation)
+	private static double	NEXTMOVEDEFAULT = 0.7;						// (n from documentation)
 	
 	// Weightings used in neural network calculations. These are optimised by lthe computer playing against itself.
 	private static double 	piecesWeight = PIECESDEFAULT;				// Number which is raised to the count of pieces 1, 2 or 3, so for 4.0 this would give 64 for 3 pieces.
@@ -49,9 +49,11 @@ public class Connect4 {
 	private static double 	nextMoveWeight = NEXTMOVEDEFAULT;			// Weighting to multiply the score for the following move, before it is subtracted from the score for this move.
 
 	// Trial weightings used for optimising neural network.
+	private static double 	piecesNew = PIECESDEFAULT;
 	private static double 	horizontalNew = HORIZONTALDEFAULT; 		
 	private static double 	verticalNew = VERTICALDEFAULT;			
 	private static double 	diagonalNew = DIAGONALDEFAULT;			
+	private static int 		randomNew = RANDOMDEFAULT;
 	private static double 	nextMoveNew = NEXTMOVEDEFAULT;			
 	
 	// The main program always starts at main. This just runs Connect 4 if there is no command line argument.
@@ -74,32 +76,15 @@ public class Connect4 {
 		String inputSt;
 		int move = 0;
 
-		// If there is no command line argument play the game as a console program.
+		// Run the game
 		if (cmdLine == "") {
-			System.out.println("Connect 4");
-			System.out.println("");
-			System.out.println("You are Red, and the computer plays Yellow.");
-			System.out.println("Just type in the column from 1 to 7 for your go.");
-			System.out.println("");
-			System.out.println("Enter 1 to play, or any other key for the computer to play itself.");
-			// Java uses exception try catch, this construct must be present for the code to compile.
-			// As a string is being used for input, no input can cause an exception.
-			// As the other option is anything, there is no need to go back for another input from the user.
-			try {
-				inputSt = br.readLine();
-				option  = Integer.parseInt(inputSt);
-			}
-			catch (Exception e) {}
-			if (option == 1) {
-				// Call function to play the game with a human.
-				playConnect4();
-			}
-			else {
-				// Call function optimise the weightings for the neural network.
-				optimiseWeightings();
-			}
+			playConnect4();
 		}
-		// If there is a command line argument check it and then process it.
+		// If the command line is 'O' run the optimisation.
+		else if (cmdLine.charAt(0) == 'O') {
+			optimiseWeightings();
+		}
+		// If there is a longer command line argument check it and then process it as a game board.
 		else {
 			
 			// Only process the string if it is long enough.
@@ -198,114 +183,116 @@ public class Connect4 {
 		int Ywin = 0;
 		int Rwin = 0;
 		int Draw = 0;
+		
+		for (int a = 0; a < 1000; a++)
+		{
+			piecesNew = 4.0; //myRandom.nextDouble()     * 7.0 + 1.01; // 1.0 to 8.0
+			horizontalNew = myRandom.nextDouble() * 1.5 + 0.51; // 0.5 to 2.0
+			verticalNew = myRandom.nextDouble()   * 1.5 + 0.51; // 0.5 to 2.0
+			diagonalNew = myRandom.nextDouble()   * 1.5 + 0.51; // 0.5 to 2.0
+			randomNew = 2; //myRandom.nextInt(10)            + 1;   // 1 to 10 
+			nextMoveNew = 0.7; //myRandom.nextDouble()   * 1.5 + 0.51; // 0.5 to 2.0			
 
-		// Loops are used so that a good combination of weightings are used.
-		for (horizontalNew = 0.5; horizontalNew < 2.0; horizontalNew = horizontalNew + 0.2) {
-			for (verticalNew = 0.5; verticalNew < 2.0; verticalNew = verticalNew + 0.2) {			
-				for (diagonalNew = 0.5; diagonalNew < 2.0; diagonalNew = diagonalNew + 0.2) {
-					for (nextMoveNew = 0.7; nextMoveNew < 0.8; nextMoveNew = nextMoveNew + 0.2) {	// Next move seems to be stable at 0.7, so don't vary
-
-						// The counts are cleared before each run of games.
-						Ywin = 0;
-						Rwin = 0;
-						Draw = 0;
-						// Play games with players alternately playing first.
-						// Red plays the default weightings, Yellow plays the new ones.
-						// Not many games are played as the games are likely to be similar.
-						for (int z = 0;z < 100; z++) {
-							if (z%2 == 1) {
-								clearGameTable();
-								for(;;) {
-									calculateMove('R', 1); // Default weightings
-									winner = gameEnded();
-									if (winner != ' ') {
-										break;
-									}				
-									calculateMove('Y', 3); // Trial weightings
-									winner = gameEnded();
-									if (winner != ' ') {
-										break;
-									}				
-								}
-							}
-							else {
-								clearGameTable();
-								for(;;) {
-									calculateMove('Y', 3);
-									winner = gameEnded();
-									if (winner != ' ') {
-										break;
-									}				
-									calculateMove('R', 1);
-									winner = gameEnded();
-									if (winner != ' ') {
-										break;
-									}				
-								}
-							}
-							if (winner == 'Y') { Ywin++; }
-							if (winner == 'R') { Rwin++; }
-							if (winner == 'D') { Draw++; }
-						}
-						
-						// If the new weightings won more games than the default weightings, try playing the current weightings.
-						// Only bother if there is a noticeable difference. The random effect allows for some change anyway.
-						if (Ywin > (Rwin * 1.2)) {
-							// The counts are again cleared.
-							Ywin = 0;
-							Rwin = 0;
-							Draw = 0;
-							// Play games with players alternately playing first.
-							// Red plays current weightings, yellow plays the new ones.
-							// Red first
-							for (int z = 0;z < 100; z++) {
-								if (z%2 == 1) {
-									clearGameTable();
-									for(;;) {
-										calculateMove('R', 2); // current weightings
-										winner = gameEnded();
-										if (winner != ' ') {
-											break;
-										}				
-										calculateMove('Y', 3); // Trial weightings
-										winner = gameEnded();
-										if (winner != ' ') {
-											break;
-										}				
-									}
-								}
-								// Yellow first
-								else {
-									clearGameTable();
-									for(;;) {
-										calculateMove('Y', 3);
-										winner = gameEnded();
-										if (winner != ' ') {
-											break;
-										}				
-										calculateMove('R', 2);
-										winner = gameEnded();
-										if (winner != ' ') {
-											break;
-										}				
-									}
-								}
-								if (winner == 'Y') { Ywin++; }
-								if (winner == 'R') { Rwin++; }
-								if (winner == 'D') { Draw++; }
-							}
-					
-							// If the new settings won more use them.
-							// Only bother if there is a noticeable difference. The random effect allows for some change anyway.
-							if (Ywin > (Rwin * 1.2)) {
-								horizontalWeight = horizontalNew; 		
-								verticalWeight = verticalNew;			
-								diagonalWeight = diagonalNew;			
-								nextMoveWeight = nextMoveNew;
-								System.out.println(" R " + Rwin + " Y " + Ywin + " Horizontal " + horizontalWeight + " Vertical " + verticalWeight + " Diagonal " + diagonalWeight + " NextMove " + nextMoveWeight);
-							}
+			// The counts are cleared before each run of games.
+			Ywin = 0;
+			Rwin = 0;
+			Draw = 0;
+			// Play games with players alternately playing first.
+			// Red plays the default weightings, Yellow plays the new ones.
+			// Not many games are played as the games are likely to be similar.
+			for (int z = 0;z < 100; z++) {
+				if (z%2 == 1) {
+					clearGameTable();
+					for(;;) {
+						calculateMove('R', 1); // Default weightings
+						winner = gameEnded();
+						if (winner != ' ') {
+							break;
+						}				
+						calculateMove('Y', 3); // Trial weightings
+						winner = gameEnded();
+						if (winner != ' ') {
+							break;
+						}				
+					}
+				}
+				else {
+					clearGameTable();
+					for(;;) {
+						calculateMove('Y', 3);
+						winner = gameEnded();
+						if (winner != ' ') {
+							break;
+						}				
+						calculateMove('R', 1);
+						winner = gameEnded();
+						if (winner != ' ') {
+							break;
+						}				
+					}
+				}
+				if (winner == 'Y') { Ywin++; }
+				if (winner == 'R') { Rwin++; }
+				if (winner == 'D') { Draw++; }
+			}
+			
+			// If the new weightings won more games than the default weightings, try playing the current weightings.
+			// Only bother if there is a noticeable difference. The random effect allows for some change anyway.
+			if (Ywin > (Rwin * 1.2)) {
+				// The counts are again cleared.
+				Ywin = 0;
+				Rwin = 0;
+				Draw = 0;
+				// Play games with players alternately playing first.
+				// Red plays current weightings, yellow plays the new ones.
+				// Red first
+				for (int z = 0;z < 100; z++) {
+					if (z%2 == 1) {
+						clearGameTable();
+						for(;;) {
+							calculateMove('R', 2); // current weightings
+							winner = gameEnded();
+							if (winner != ' ') {
+								break;
+							}				
+							calculateMove('Y', 3); // Trial weightings
+							winner = gameEnded();
+							if (winner != ' ') {
+								break;
+							}				
 						}
 					}
+					// Yellow first
+					else {
+						clearGameTable();
+						for(;;) {
+							calculateMove('Y', 3);
+							winner = gameEnded();
+							if (winner != ' ') {
+								break;
+							}				
+							calculateMove('R', 2);
+							winner = gameEnded();
+							if (winner != ' ') {
+								break;
+							}				
+						}
+					}
+					if (winner == 'Y') { Ywin++; }
+					if (winner == 'R') { Rwin++; }
+					if (winner == 'D') { Draw++; }
+				}
+		
+				// If the new settings won more use them.
+				// Only bother if there is a noticeable difference. The random effect allows for some change anyway.
+				if (Ywin > (Rwin * 1.2)) {
+					piecesWeight = piecesNew;
+					horizontalWeight = horizontalNew; 		
+					verticalWeight = verticalNew;			
+					diagonalWeight = diagonalNew;			
+					randomWeight = randomNew;
+					nextMoveWeight = nextMoveNew;
+					System.out.println(a + " R " + Rwin + " Y " + Ywin + " Pieces " + (float)((int)(piecesWeight*10)/10.0) + " Horizontal " + (float)((int)(horizontalWeight*10)/10.0) + " Vertical " + (float)((int)(verticalWeight*10)/10.0) + " Diagonal " + (float)((int)(diagonalWeight*10)/10.0) + " Random " + randomWeight + " NextMove " + (float)((int)(nextMoveWeight*10)/10.0));
 				}
 			}
 		}
@@ -626,14 +613,18 @@ public class Connect4 {
 
 		// Select the weighting to be used.
 		if (weights == 2) {
+			piecesLocal 	= piecesWeight;
 			horizontalLocal = horizontalWeight;
 			verticalLocal	= verticalWeight;
 			diagonalLocal	= diagonalWeight;
+			randomLocal		= randomWeight;
 		}
 		if (weights == 3) {
+			piecesLocal 	= piecesNew;
 			horizontalLocal = horizontalNew;
 			verticalLocal	= verticalNew;
 			diagonalLocal	= diagonalNew;
+			randomLocal		= randomNew;
 		}
 			
 		// Do arrays of 7 by 6 of the scores for vertical.

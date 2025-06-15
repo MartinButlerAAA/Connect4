@@ -33,19 +33,19 @@ public class Connect4 {
 	private static double[][] combinedScoresY = new double[7][6];		// Array used to combine vertical, horizontal and diagonal scores for each board position for yellow.
 
 	// The default values below have been selected after optimisation.
-	private static double 	PIECESDEFAULT = 4.0; 						// (x from documentation) Now not optimised	
-	private static int		RANDOMDEFAULT = 2;							// (r from documentation) Now not optimised
-	private static double	HORIZONTALDEFAULT = 1.02;					// (h from documentation) 
-	private static double	VERTICALDEFAULT = 1.64;						// (v documentation)
-	private static double	DIAGONALDEFAULT = 1.70;						// (d from documentation)
-	private static double	NEXTMOVEDEFAULT = 0.7;						// (n from documentation)
+	private static double 	PIECESDEFAULT = 6.0; 						// (x from documentation) Now not optimised	
+	private static double	HORIZONTALDEFAULT = 1.0;					// (h from documentation) 
+	private static double	VERTICALDEFAULT = 1.0;						// (v documentation)
+	private static double	DIAGONALDEFAULT = 1.0;						// (d from documentation)
+	private static double	OPPNTMOVEDEFAULT = 0.5; 					// (o from documentation)
+	private static double	NEXTMOVEDEFAULT = 0.5;						// (n from documentation)
 	
 	// Weightings used in neural network calculations. These are optimised by lthe computer playing against itself.
 	private static double 	piecesWeight = PIECESDEFAULT;				// Number which is raised to the count of pieces 1, 2 or 3, so for 4.0 this would give 64 for 3 pieces.
 	private static double 	horizontalWeight = HORIZONTALDEFAULT; 		// Horizontal scores are multiplied by this weighting.
 	private static double 	verticalWeight = VERTICALDEFAULT;			// Weighting for verticals.
 	private static double 	diagonalWeight = DIAGONALDEFAULT;			// Weighting for diagonals.
-	private static int 		randomWeight = RANDOMDEFAULT;				// Maximum random number added to the score for a position on the board.
+	private static double	oppntMoveWeight = OPPNTMOVEDEFAULT;			// 
 	private static double 	nextMoveWeight = NEXTMOVEDEFAULT;			// Weighting to multiply the score for the following move, before it is subtracted from the score for this move.
 
 	// Trial weightings used for optimising neural network.
@@ -53,7 +53,7 @@ public class Connect4 {
 	private static double 	horizontalNew = HORIZONTALDEFAULT; 		
 	private static double 	verticalNew = VERTICALDEFAULT;			
 	private static double 	diagonalNew = DIAGONALDEFAULT;			
-	private static int 		randomNew = RANDOMDEFAULT;
+	private static double	oppntMoveNew = OPPNTMOVEDEFAULT;
 	private static double 	nextMoveNew = NEXTMOVEDEFAULT;			
 	
 	// The main program always starts at main. This just runs Connect 4 if there is no command line argument.
@@ -83,40 +83,6 @@ public class Connect4 {
 		// If the command line is 'O' run the optimisation.
 		else if (cmdLine.charAt(0) == 'O') {
 			optimiseWeightings();
-		}
-		// If there is a longer command line argument check it and then process it as a game board.
-		else {
-			
-			// Only process the string if it is long enough.
-			if (cmdLine.length() >= 42) {
-				// If the string is long enough, check that it only has the correct characters in it.
-				for (int a = 0; a < 42; a++) {
-					if ((cmdLine.charAt(a) != 'R')&&(cmdLine.charAt(a) != 'Y')&&(cmdLine.charAt(a) != ' ')) {
-						System.out.println("Erroneous character " + cmdLine.charAt(a));
-						return;
-					}
-					// Populate the game table from the command line argument.
-					gameTable[a%7][a/7] = cmdLine.charAt(a);
-				}
-				displayBoard();							// Display to aid debug.
-				move = calculateMove('Y', 2); 			// computer plays yellow with current weightings
-				System.out.println("Move " + (move+1)); // Move changed to 1-7 to return via a file, displayed for debug.
-
-				// Java does not support int main, so a value cannot be returned to the command line.
-				// A text file is used to return the move instead.
-				try {
-					FileWriter myFile = new FileWriter("Move.txt");
-					// Write the move and add 1 to be 1-7 not 0-6.
-					myFile.write("Move " + (move+1));
-					myFile.close();
-				}
-				// The exception must be caught, but there is nothing useful to do here, so there is no handling.
-				catch (Exception e) {}
-			}
-			else{
-				System.out.println("Game details passed less than 42 characters.");
-			}
-			return;
 		}
 	}
 
@@ -184,14 +150,14 @@ public class Connect4 {
 		int Rwin = 0;
 		int Draw = 0;
 		
-		for (int a = 0; a < 1000; a++)
+		for (int a = 0; a < 10000; a++)
 		{
-			piecesNew = 4.0; //myRandom.nextDouble()     * 7.0 + 1.01; // 1.0 to 8.0
+			piecesNew = PIECESDEFAULT; //myRandom.nextDouble()     * 7.0 + 1.01; // 1.0 to 8.0
 			horizontalNew = myRandom.nextDouble() * 1.5 + 0.51; // 0.5 to 2.0
 			verticalNew = myRandom.nextDouble()   * 1.5 + 0.51; // 0.5 to 2.0
-			diagonalNew = myRandom.nextDouble()   * 1.5 + 0.51; // 0.5 to 2.0
-			randomNew = 2; //myRandom.nextInt(10)            + 1;   // 1 to 10 
-			nextMoveNew = 0.7; //myRandom.nextDouble()   * 1.5 + 0.51; // 0.5 to 2.0			
+			diagonalNew = DIAGONALDEFAULT; // myRandom.nextDouble()   * 1.5 + 0.51; // 0.5 to 2.0
+			nextMoveNew = OPPNTMOVEDEFAULT; // myRandom.nextDouble()   * 1.5 + 0.51; // 0.5 to 2.0			
+			oppntMoveNew = NEXTMOVEDEFAULT; // myRandom.nextDouble()   * 1.5 + 0.51; // 0.5 to 2.0			
 
 			// The counts are cleared before each run of games.
 			Ywin = 0;
@@ -200,8 +166,9 @@ public class Connect4 {
 			// Play games with players alternately playing first.
 			// Red plays the default weightings, Yellow plays the new ones.
 			// Not many games are played as the games are likely to be similar.
-			for (int z = 0;z < 100; z++) {
+			for (int z = 0;z < 14; z++) {
 				if (z%2 == 1) {
+					gameTable[z%7][0] = 'Y';
 					clearGameTable();
 					for(;;) {
 						calculateMove('R', 1); // Default weightings
@@ -218,6 +185,7 @@ public class Connect4 {
 				}
 				else {
 					clearGameTable();
+					gameTable[z%7][0] = 'R';
 					for(;;) {
 						calculateMove('Y', 3);
 						winner = gameEnded();
@@ -238,7 +206,7 @@ public class Connect4 {
 			
 			// If the new weightings won more games than the default weightings, try playing the current weightings.
 			// Only bother if there is a noticeable difference. The random effect allows for some change anyway.
-			if (Ywin > (Rwin * 1.2)) {
+			if (Ywin > (Rwin + 2)) {
 				// The counts are again cleared.
 				Ywin = 0;
 				Rwin = 0;
@@ -246,9 +214,10 @@ public class Connect4 {
 				// Play games with players alternately playing first.
 				// Red plays current weightings, yellow plays the new ones.
 				// Red first
-				for (int z = 0;z < 100; z++) {
+				for (int z = 0;z < 14; z++) {
 					if (z%2 == 1) {
 						clearGameTable();
+						gameTable[z%7][0] = 'Y';
 						for(;;) {
 							calculateMove('R', 2); // current weightings
 							winner = gameEnded();
@@ -265,6 +234,7 @@ public class Connect4 {
 					// Yellow first
 					else {
 						clearGameTable();
+						gameTable[z%7][0] = 'R';
 						for(;;) {
 							calculateMove('Y', 3);
 							winner = gameEnded();
@@ -285,14 +255,14 @@ public class Connect4 {
 		
 				// If the new settings won more use them.
 				// Only bother if there is a noticeable difference. The random effect allows for some change anyway.
-				if (Ywin > (Rwin * 1.2)) {
+				if (Ywin > (Rwin + 2)) {
 					piecesWeight = piecesNew;
 					horizontalWeight = horizontalNew; 		
 					verticalWeight = verticalNew;			
 					diagonalWeight = diagonalNew;			
-					randomWeight = randomNew;
 					nextMoveWeight = nextMoveNew;
-					System.out.println(a + " R " + Rwin + " Y " + Ywin + " Pieces " + (float)((int)(piecesWeight*10)/10.0) + " Horizontal " + (float)((int)(horizontalWeight*10)/10.0) + " Vertical " + (float)((int)(verticalWeight*10)/10.0) + " Diagonal " + (float)((int)(diagonalWeight*10)/10.0) + " Random " + randomWeight + " NextMove " + (float)((int)(nextMoveWeight*10)/10.0));
+					oppntMoveWeight = oppntMoveNew;
+					System.out.println(a + " R " + Rwin + " Y " + Ywin + " Pieces " + (float)((int)(piecesWeight*10)/10.0) + " Horizontal " + (float)((int)(horizontalWeight*10)/10.0) + " Vertical " + (float)((int)(verticalWeight*10)/10.0) + " Diagonal " + (float)((int)(diagonalWeight*10)/10.0) + " OppntMove " + (float)((int)(oppntMoveWeight*10)/10.0) + " NextMove " + (float)((int)(nextMoveWeight*10)/10.0));
 				}
 			}
 		}
@@ -430,13 +400,20 @@ public class Connect4 {
 	// 8 neurons
 	private static int selectMove(char Player, int weights) {	// The player selects R for red or Y for Yellow. The weights is 1 default, 2 current or 3 new
 		double 	nextMoveLocal 	= NEXTMOVEDEFAULT;
+		double  oppntMoveLocal	= OPPNTMOVEDEFAULT;
 		double possibles[] = new double[7]; 		// array of scores for each column to select move.
 		double highest = -1.0; 						// variable to select the highest to identify the column.
 		int move = 3; 								// The move is set to default to the middle of the table.
 
 		// Select the weighting to be used.
-		if (weights == 2) { nextMoveLocal 	= nextMoveWeight; }
-		if (weights == 3) { nextMoveLocal 	= nextMoveNew; }			
+		if (weights == 2) { 
+			nextMoveLocal 	= nextMoveWeight; 
+			oppntMoveLocal	= oppntMoveWeight;
+		}
+		if (weights == 3) { 
+			nextMoveLocal 	= nextMoveNew; 
+			oppntMoveLocal	= oppntMoveNew;
+		}			
 
 		// Go through all columns to calculate the score for each one to select the move.
 		for (int x = 0; x < 7; x++) {
@@ -447,7 +424,12 @@ public class Connect4 {
 				if (gameTable[x][y] == ' ') { 
 					// Calculate the score for the column by adding the red and yellow scores.
 					// It is a good idea to block a position, if it is a good move for the opponent.
-					possibles[x] = combinedScoresR[x][y] + combinedScoresY[x][y];
+					if (Player == 'Y') {
+						possibles[x] = combinedScoresY[x][y] + (combinedScoresR[x][y] * oppntMoveLocal);
+					}
+					else {
+						possibles[x] = combinedScoresR[x][y] + (combinedScoresY[x][y] * oppntMoveLocal);
+					}
 					// check if column at top before looking at next move.
 					if (y < 5) {
 					// If there is a space above, subtract the opponents score from the score calculated.
@@ -609,7 +591,6 @@ public class Connect4 {
 		double 	horizontalLocal = HORIZONTALDEFAULT;
 		double 	verticalLocal 	= VERTICALDEFAULT;
 		double 	diagonalLocal 	= DIAGONALDEFAULT;
-		int		randomLocal 	= RANDOMDEFAULT;	// Local copy taken so it can be optimised.			
 
 		// Select the weighting to be used.
 		if (weights == 2) {
@@ -617,14 +598,12 @@ public class Connect4 {
 			horizontalLocal = horizontalWeight;
 			verticalLocal	= verticalWeight;
 			diagonalLocal	= diagonalWeight;
-			randomLocal		= randomWeight;
 		}
 		if (weights == 3) {
 			piecesLocal 	= piecesNew;
 			horizontalLocal = horizontalNew;
 			verticalLocal	= verticalNew;
 			diagonalLocal	= diagonalNew;
-			randomLocal		= randomNew;
 		}
 			
 		// Do arrays of 7 by 6 of the scores for vertical.
@@ -843,10 +822,10 @@ public class Connect4 {
 		for (int x = 0; x < 7; x++) {
 			for (int y = 0; y < 6; y++) {
 				if (gameTable[x][y] == ' ') {
-					// For each position a random number is selected then added to the corresponding vertical, horizontal and diagonals scores.
+					// For each position the corresponding vertical, horizontal and diagonals scores are added.
 					// Each of the scores is multiplied by a weighting, before the addition.
-					combinedScoresR[x][y] = (double)myRandom.nextInt(randomLocal) + (combinedColumnsR[x][y] * verticalLocal) + (combinedRowsR[x][y] * horizontalLocal) + (combinedDiagonalsUpR[x][y] * diagonalLocal) + (combinedDiagonalsDownR[x][y] * diagonalLocal);
-					combinedScoresY[x][y] = (double)myRandom.nextInt(randomLocal) + (combinedColumnsY[x][y] * verticalLocal) + (combinedRowsY[x][y] * horizontalLocal) + (combinedDiagonalsUpY[x][y] * diagonalLocal) + (combinedDiagonalsDownY[x][y] * diagonalLocal);
+					combinedScoresR[x][y] = (combinedColumnsR[x][y] * verticalLocal) + (combinedRowsR[x][y] * horizontalLocal) + (combinedDiagonalsUpR[x][y] * diagonalLocal) + (combinedDiagonalsDownR[x][y] * diagonalLocal);
+					combinedScoresY[x][y] = (combinedColumnsY[x][y] * verticalLocal) + (combinedRowsY[x][y] * horizontalLocal) + (combinedDiagonalsUpY[x][y] * diagonalLocal) + (combinedDiagonalsDownY[x][y] * diagonalLocal);
 				}
 				else {
 					// Clearing the array elements that have already been played isn't strictly necessary, but it makes the code easier to debug.
